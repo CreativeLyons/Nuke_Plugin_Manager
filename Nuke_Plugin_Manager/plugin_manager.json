@@ -9,7 +9,7 @@
           "enabled": true
         },
         "AnimationMaker1_3": {
-          "enabled": true
+          "enabled": false
         },
         "Cryptomattes": {
           "enabled": true
@@ -18,7 +18,7 @@
           "enabled": true
         },
         "IconPanel": {
-          "enabled": true
+          "enabled": false
         },
         "KnobScripter_3.1.0": {
           "enabled": true

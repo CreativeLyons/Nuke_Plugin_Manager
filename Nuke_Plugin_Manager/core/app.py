@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -23,7 +24,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QMessageBox
 )
-from PySide6.QtCore import Qt, QSignalBlocker, QUrl, QTimer
+from PySide6.QtCore import Qt, QSignalBlocker, QUrl, QTimer, QEvent
 from PySide6.QtGui import QFont, QDesktopServices
 
 from config import load_config, save_config
@@ -46,6 +47,7 @@ class PluginManagerWindow(QMainWindow):
         self.config, load_status = load_config(self.config_path, return_status=True)
         self.plugin_checkboxes = {}  # Map plugin name to checkbox widget
         self._config_load_status = load_status  # Track load status for error display
+        self.search_filter = ""  # Current search filter text
 
         self.setWindowTitle("Nuke Plugin Manager")
         self.setMinimumWidth(600)
@@ -102,15 +104,29 @@ class PluginManagerWindow(QMainWindow):
         self.vanilla_checkbox.toggled.connect(self._on_vanilla_changed)
         main_layout.addWidget(self.vanilla_checkbox)
 
+        # Search input
+        search_layout = QHBoxLayout()
+        search_label = QLabel("Search plugins:")
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search plugins…")
+        self.search_input.textChanged.connect(self._on_search_changed)
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_input)
+        main_layout.addLayout(search_layout)
+
         # Plugin list scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setMinimumHeight(200)
         self.plugin_list_widget = QWidget()
-        self.plugin_list_layout = QVBoxLayout(self.plugin_list_widget)
+        self.plugin_list_layout = QGridLayout(self.plugin_list_widget)
         self.plugin_list_layout.setAlignment(Qt.AlignTop)
         self.scroll_area.setWidget(self.plugin_list_widget)
         main_layout.addWidget(self.scroll_area)
+
+        # Connect resize event to re-layout plugins
+        self.plugin_list_widget.installEventFilter(self)
+        self.scroll_area.viewport().installEventFilter(self)
 
         # Select All / Deselect All buttons and status label (same line)
         status_layout = QHBoxLayout()
@@ -162,6 +178,11 @@ class PluginManagerWindow(QMainWindow):
         self._update_plugin_list()
         self._update_warning()
         self._update_button_states()
+
+    def _on_search_changed(self, text: str):
+        """Handle search input change."""
+        self.search_filter = text.lower()
+        self._update_plugin_list()
 
     def _on_browse_clicked(self):
         """Handle browse button click."""
@@ -315,13 +336,32 @@ class PluginManagerWindow(QMainWindow):
         state = build_plugin_state(self.config)
         plugins = state.get("plugins", [])
 
-        # Create checkboxes for each plugin
+        # Filter plugins by search text
+        filtered_plugins = []
         for plugin in plugins:
+            plugin_name = plugin.get("name", "")
+            if not self.search_filter or self.search_filter in plugin_name.lower():
+                filtered_plugins.append(plugin)
+
+        # Calculate number of columns based on viewport width
+        target_item_width = 260
+        viewport_width = self.scroll_area.viewport().width()
+        if viewport_width < target_item_width:
+            num_columns = 1
+        else:
+            num_columns = max(1, viewport_width // target_item_width)
+
+        # Create checkboxes and add to grid layout
+        checkbox_font = QFont()
+        checkbox_font.setPointSize(checkbox_font.pointSize() + 1)  # Slightly larger font
+
+        for index, plugin in enumerate(filtered_plugins):
             plugin_name = plugin.get("name", "")
             enabled = plugin.get("enabled", False)
             underscore_disabled = plugin.get("underscore_disabled", False)
 
             checkbox = QCheckBox(plugin_name)
+            checkbox.setFont(checkbox_font)
 
             # Block signals during initialization to prevent config mutation
             with QSignalBlocker(checkbox):
@@ -338,13 +378,22 @@ class PluginManagerWindow(QMainWindow):
             )
 
             self.plugin_checkboxes[plugin_name] = checkbox
-            self.plugin_list_layout.addWidget(checkbox)
 
-        # Add stretch at the end
-        self.plugin_list_layout.addStretch()
+            # Calculate grid position (row-major order)
+            row = index // num_columns
+            col = index % num_columns
+            self.plugin_list_layout.addWidget(checkbox, row, col, Qt.AlignLeft | Qt.AlignTop)
 
         # Update enabled state based on vanilla
         self.update_enabled_state()
+
+    def eventFilter(self, obj, event):
+        """Handle resize events to re-layout plugin grid."""
+        if event.type() == QEvent.Type.Resize:
+            if obj == self.scroll_area.viewport() or obj == self.plugin_list_widget:
+                # Use QTimer to debounce rapid resize events
+                QTimer.singleShot(50, self._update_plugin_list)
+        return super().eventFilter(obj, event)
 
     def update_enabled_state(self):
         """Update enabled state of plugin list container based on vanilla mode."""

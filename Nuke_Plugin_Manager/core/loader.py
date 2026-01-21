@@ -95,9 +95,6 @@ def apply_plugin_paths(
         # Get current Nuke major version
         current_nuke_major = _get_nuke_major_version(nuke_module, nuke_major)
 
-        # Collect plugins that will be loaded
-        loaded_plugins = []
-
         # Process each plugin
         plugins = state.get("plugins", [])
         for plugin in plugins:
@@ -126,10 +123,10 @@ def apply_plugin_paths(
                 plugin_path = plugin.get("path")
                 if plugin_path:
                     try:
-                        nuke_module.pluginAddPath(plugin_path)
-                        # Collect plugin name for logging
+                        # Get plugin name for logging
                         plugin_name = plugin.get("name", Path(plugin_path).name)
-                        loaded_plugins.append(plugin_name)
+                        print(f"Loading {plugin_name}...")
+                        nuke_module.pluginAddPath(plugin_path)
                     except (AttributeError, TypeError) as e:
                         print(f"Warning: Failed to add plugin path '{plugin_path}': {e}")
                         continue
@@ -142,13 +139,6 @@ def apply_plugin_paths(
                 # Catch any errors processing individual plugins
                 print(f"Warning: Error processing plugin: {e}")
                 continue
-
-        # Print loaded plugins list with separators at start and end
-        if loaded_plugins:
-            print("=" * 80)
-            for plugin_name in loaded_plugins:
-                print(f"Loaded Plugin......{plugin_name}")
-            print("=" * 80)
 
         return True
 
