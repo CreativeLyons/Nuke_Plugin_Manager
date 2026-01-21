@@ -8,6 +8,7 @@ import sys
 import argparse
 from pathlib import Path
 from typing import Dict, Any
+from functools import partial
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,8 +23,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QMessageBox
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QSignalBlocker, QUrl
+from PySide6.QtGui import QFont, QDesktopServices
 
 from config import load_config, save_config
 from plugin_state import build_plugin_state, set_plugin_enabled, set_vanilla, set_plugins_root
@@ -40,8 +41,9 @@ class PluginManagerWindow(QMainWindow):
             config_path: Path to the configuration JSON file
         """
         super().__init__()
-        self.config_path = config_path
-        self.config = load_config(config_path)
+        # Resolve config path to absolute
+        self.config_path = str(Path(config_path).resolve())
+        self.config = load_config(self.config_path)
         self.plugin_checkboxes = {}  # Map plugin name to checkbox widget
 
         self.setWindowTitle("Nuke Plugin Manager")
@@ -68,6 +70,17 @@ class PluginManagerWindow(QMainWindow):
         folder_layout.addWidget(self.plugins_root_edit)
         folder_layout.addWidget(browse_button)
         main_layout.addLayout(folder_layout)
+
+        # Config file section
+        config_layout = QHBoxLayout()
+        config_label = QLabel(f"Config file: {self.config_path}")
+        config_label.setStyleSheet("color: #666;")
+        open_config_button = QPushButton("Open config")
+        open_config_button.clicked.connect(self._on_open_config_clicked)
+        config_layout.addWidget(config_label)
+        config_layout.addWidget(open_config_button)
+        config_layout.addStretch()
+        main_layout.addLayout(config_layout)
 
         # Warning area
         self.warning_label = QLabel()
@@ -153,16 +166,38 @@ class PluginManagerWindow(QMainWindow):
         if folder:
             self.plugins_root_edit.setText(folder)
 
+    def _on_open_config_clicked(self):
+        """Handle open config button click."""
+        config_file = Path(self.config_path)
+
+        # Create file with default config if it doesn't exist
+        if not config_file.exists():
+            try:
+                # Ensure parent directory exists
+                config_file.parent.mkdir(parents=True, exist_ok=True)
+                # Write default config
+                from config import DEFAULT_CONFIG
+                save_config(self.config_path, DEFAULT_CONFIG)
+                # Reload config after creating
+                self.config = load_config(self.config_path)
+            except Exception:
+                self.status_label.setText("⚠️ Could not open config")
+                return
+
+        # Open file with OS default handler
+        url = QUrl.fromLocalFile(self.config_path)
+        if not QDesktopServices.openUrl(url):
+            self.status_label.setText("⚠️ Could not open config")
+
     def _on_vanilla_changed(self, checked: bool):
         """Handle vanilla checkbox change."""
         self.config = set_vanilla(self.config, checked)
         self.status_label.setText("")  # Clear status on change
         self.update_enabled_state()
 
-    def _on_plugin_checkbox_changed(self, plugin_name: str, state: int):
+    def _on_plugin_checkbox_changed(self, plugin_name: str, checked: bool):
         """Handle plugin checkbox change."""
-        enabled = state == Qt.Checked
-        self.config = set_plugin_enabled(self.config, plugin_name, enabled)
+        self.config = set_plugin_enabled(self.config, plugin_name, checked)
         self.status_label.setText("")  # Clear status on change
 
     def _on_save_clicked(self):
@@ -210,12 +245,19 @@ class PluginManagerWindow(QMainWindow):
             )
             self.warning_label.show()
 
+    def _clear_layout(self, layout):
+        """Clear all widgets from a layout using takeAt() and deleteLater()."""
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
+
     def _update_plugin_list(self):
         """Update the plugin list from current config."""
-        # Clear existing checkboxes
-        for checkbox in self.plugin_checkboxes.values():
-            checkbox.setParent(None)
-            checkbox.deleteLater()
+        # Clear existing layout items
+        self._clear_layout(self.plugin_list_layout)
         self.plugin_checkboxes.clear()
 
         # Build plugin state
@@ -229,15 +271,19 @@ class PluginManagerWindow(QMainWindow):
             underscore_disabled = plugin.get("underscore_disabled", False)
 
             checkbox = QCheckBox(plugin_name)
-            checkbox.setChecked(enabled)
-            checkbox.setEnabled(not underscore_disabled)
 
-            # If underscore-disabled, ensure it's unchecked
-            if underscore_disabled:
-                checkbox.setChecked(False)
+            # Block signals during initialization to prevent config mutation
+            with QSignalBlocker(checkbox):
+                checkbox.setChecked(enabled)
+                checkbox.setEnabled(not underscore_disabled)
 
-            checkbox.stateChanged.connect(
-                lambda state, name=plugin_name: self._on_plugin_checkbox_changed(name, state)
+                # If underscore-disabled, ensure it's unchecked
+                if underscore_disabled:
+                    checkbox.setChecked(False)
+
+            # Connect signal after initialization
+            checkbox.toggled.connect(
+                lambda checked, name=plugin_name: self._on_plugin_checkbox_changed(name, checked)
             )
 
             self.plugin_checkboxes[plugin_name] = checkbox
