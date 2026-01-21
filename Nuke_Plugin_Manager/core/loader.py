@@ -95,6 +95,9 @@ def apply_plugin_paths(
         # Get current Nuke major version
         current_nuke_major = _get_nuke_major_version(nuke_module, nuke_major)
 
+        # Collect plugins that will be loaded
+        plugins_to_load = []
+
         # Process each plugin
         plugins = state.get("plugins", [])
         for plugin in plugins:
@@ -125,20 +128,31 @@ def apply_plugin_paths(
                     try:
                         # Get plugin name for logging
                         plugin_name = plugin.get("name", Path(plugin_path).name)
-                        print(f"Loading {plugin_name}...")
-                        nuke_module.pluginAddPath(plugin_path)
-                    except (AttributeError, TypeError) as e:
-                        print(f"Warning: Failed to add plugin path '{plugin_path}': {e}")
-                        continue
+                        plugins_to_load.append((plugin_name, plugin_path))
                     except Exception as e:
-                        # Catch any other unexpected errors from pluginAddPath
-                        print(f"Warning: Unexpected error adding plugin path '{plugin_path}': {e}")
+                        print(f"Warning: Error preparing plugin '{plugin_path}': {e}")
                         continue
 
             except Exception as e:
                 # Catch any errors processing individual plugins
                 print(f"Warning: Error processing plugin: {e}")
                 continue
+
+        # Print loaded plugins list with separators at start and end
+        if plugins_to_load:
+            print("=" * 80)
+            for plugin_name, plugin_path in plugins_to_load:
+                try:
+                    print(f"Loading {plugin_name}...")
+                    nuke_module.pluginAddPath(plugin_path)
+                except (AttributeError, TypeError) as e:
+                    print(f"Warning: Failed to add plugin path '{plugin_path}': {e}")
+                    continue
+                except Exception as e:
+                    # Catch any other unexpected errors from pluginAddPath
+                    print(f"Warning: Unexpected error adding plugin path '{plugin_path}': {e}")
+                    continue
+            print("=" * 80)
 
         return True
 
