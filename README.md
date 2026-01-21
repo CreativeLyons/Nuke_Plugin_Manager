@@ -21,9 +21,9 @@ Panel that manages plugins you want loaded into Nuke at startup.
    ```
 
 3. **Create the launcher (one-time setup):**
-   - **macOS**: Double-click `Install_Launcher.command`
-   - **Windows**: Double-click `Install_Launcher.bat`
-   - **Linux**: Double-click `Install_Launcher.sh` (or run: `bash Install_Launcher.sh`)
+   - **macOS**: Double-click `install/Install_Plugin_Manager_macOS.command`
+   - **Windows**: Double-click `install/Install_Plugin_Manager_Windows.bat`
+   - **Linux**: Double-click `install/Install_Plugin_Manager_Linux.sh` (or run: `bash install/Install_Plugin_Manager_Linux.sh`)
    - This creates a platform-specific launcher in `~/.nuke/Nuke_Plugin_Manager/`
 
 4. **Open the panel standalone:**
