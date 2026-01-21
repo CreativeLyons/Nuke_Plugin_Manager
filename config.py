@@ -13,15 +13,54 @@ from typing import Dict, Any
 
 
 # Schema version
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
-# Default configuration
+# Default configuration (v2)
 DEFAULT_CONFIG = {
     "schema_version": SCHEMA_VERSION,
     "vanilla": False,
     "plugins_root": "",
-    "plugins": {}
+    "roots": {}
 }
+
+
+def _migrate_v1_to_v2(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Migrate schema v1 config to v2 format.
+
+    Moves plugins dict to roots[plugins_root]["plugins"].
+    Preserves all data.
+
+    Args:
+        config: v1 config dictionary
+
+    Returns:
+        v2 config dictionary
+    """
+    if config.get("schema_version") != 1:
+        return config
+
+    migrated = config.copy()
+    migrated["schema_version"] = 2
+
+    plugins_root = migrated.get("plugins_root", "")
+    plugins = migrated.get("plugins", {})
+
+    # Remove old plugins key
+    if "plugins" in migrated:
+        del migrated["plugins"]
+
+    # Initialize roots dict
+    if "roots" not in migrated:
+        migrated["roots"] = {}
+
+    # Migrate plugins to roots[plugins_root]["plugins"]
+    if plugins_root and plugins:
+        if plugins_root not in migrated["roots"]:
+            migrated["roots"][plugins_root] = {}
+        migrated["roots"][plugins_root]["plugins"] = plugins
+
+    return migrated
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -60,9 +99,19 @@ def load_config(config_path: str) -> Dict[str, Any]:
         if not isinstance(loaded_config, dict):
             return DEFAULT_CONFIG.copy()
 
+        # Get schema version
+        schema_version = loaded_config.get("schema_version", SCHEMA_VERSION)
+
+        # Migrate v1 to v2 if needed
+        if schema_version == 1:
+            config = _migrate_v1_to_v2(loaded_config)
+        else:
+            config = loaded_config.copy()
+
         # Merge with defaults to ensure all keys exist
-        config = DEFAULT_CONFIG.copy()
-        config.update(loaded_config)
+        default_config = DEFAULT_CONFIG.copy()
+        default_config.update(config)
+        config = default_config
 
         # Ensure schema_version is set correctly
         config["schema_version"] = SCHEMA_VERSION
@@ -74,8 +123,8 @@ def load_config(config_path: str) -> Dict[str, Any]:
         if not isinstance(config.get("plugins_root"), str):
             config["plugins_root"] = DEFAULT_CONFIG["plugins_root"]
 
-        if not isinstance(config.get("plugins"), dict):
-            config["plugins"] = DEFAULT_CONFIG["plugins"]
+        if not isinstance(config.get("roots"), dict):
+            config["roots"] = DEFAULT_CONFIG["roots"]
 
         return config
 
@@ -104,6 +153,11 @@ def save_config(config_path: str, config: Dict[str, Any]) -> bool:
 
     config_file = Path(config_path)
 
+    # Migrate v1 to v2 if needed before saving
+    schema_version = config.get("schema_version", SCHEMA_VERSION)
+    if schema_version == 1:
+        config = _migrate_v1_to_v2(config)
+
     # Ensure schema_version is set
     config_to_save = config.copy()
     config_to_save["schema_version"] = SCHEMA_VERSION
@@ -113,8 +167,8 @@ def save_config(config_path: str, config: Dict[str, Any]) -> bool:
         config_to_save["vanilla"] = DEFAULT_CONFIG["vanilla"]
     if "plugins_root" not in config_to_save:
         config_to_save["plugins_root"] = DEFAULT_CONFIG["plugins_root"]
-    if "plugins" not in config_to_save:
-        config_to_save["plugins"] = DEFAULT_CONFIG["plugins"]
+    if "roots" not in config_to_save:
+        config_to_save["roots"] = DEFAULT_CONFIG["roots"]
 
     try:
         # Create parent directory if it doesn't exist

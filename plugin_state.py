@@ -35,7 +35,17 @@ def build_plugin_state(config: Dict[str, Any]) -> Dict[str, Any]:
     # Extract values from config with defaults
     vanilla = config.get("vanilla", False)
     plugins_root = config.get("plugins_root", "")
-    plugins_config = config.get("plugins", {})
+
+    # Get plugins config from active root (v2 schema)
+    # Normalize plugins_root to absolute path for consistent lookup
+    if plugins_root:
+        plugins_root_abs = str(Path(plugins_root).resolve())
+    else:
+        plugins_root_abs = ""
+
+    roots = config.get("roots", {})
+    active_root_config = roots.get(plugins_root_abs, {})
+    plugins_config = active_root_config.get("plugins", {})
 
     # If plugins_root is empty or invalid, return empty plugins list
     if not plugins_root or not isinstance(plugins_root, str):
@@ -102,6 +112,8 @@ def set_plugin_enabled(config: Dict[str, Any], plugin_name: str, enabled: bool) 
     Returns a new config dictionary with the updated plugin state.
     Does not save the configuration to disk.
 
+    Plugin state is scoped to the active plugins_root (v2 schema).
+
     Args:
         config: Configuration dictionary to update
         plugin_name: Name of the plugin to update
@@ -113,21 +125,39 @@ def set_plugin_enabled(config: Dict[str, Any], plugin_name: str, enabled: bool) 
     # Create a copy to avoid mutating the original
     updated_config = config.copy()
 
-    # Ensure plugins dict exists
-    if "plugins" not in updated_config:
-        updated_config["plugins"] = {}
+    # Get active plugins_root
+    plugins_root = updated_config.get("plugins_root", "")
+    if not plugins_root:
+        return updated_config
+
+    # Normalize to absolute path for consistent lookup
+    plugins_root_abs = str(Path(plugins_root).resolve())
+
+    # Ensure roots dict exists
+    if "roots" not in updated_config:
+        updated_config["roots"] = {}
+
+    # Ensure active root entry exists
+    if plugins_root_abs not in updated_config["roots"]:
+        updated_config["roots"][plugins_root_abs] = {}
+
+    # Ensure plugins dict exists in active root
+    if "plugins" not in updated_config["roots"][plugins_root_abs]:
+        updated_config["roots"][plugins_root_abs]["plugins"] = {}
 
     # Ensure plugin entry exists
-    if plugin_name not in updated_config["plugins"]:
-        updated_config["plugins"][plugin_name] = {}
+    if plugin_name not in updated_config["roots"][plugins_root_abs]["plugins"]:
+        updated_config["roots"][plugins_root_abs]["plugins"][plugin_name] = {}
 
     # Create a copy of the plugin config
-    plugin_config = updated_config["plugins"][plugin_name].copy()
+    plugin_config = updated_config["roots"][plugins_root_abs]["plugins"][plugin_name].copy()
     plugin_config["enabled"] = bool(enabled)
 
     # Update the plugins dict
-    updated_config["plugins"] = updated_config["plugins"].copy()
-    updated_config["plugins"][plugin_name] = plugin_config
+    updated_config["roots"] = updated_config["roots"].copy()
+    updated_config["roots"][plugins_root_abs] = updated_config["roots"][plugins_root_abs].copy()
+    updated_config["roots"][plugins_root_abs]["plugins"] = updated_config["roots"][plugins_root_abs]["plugins"].copy()
+    updated_config["roots"][plugins_root_abs]["plugins"][plugin_name] = plugin_config
 
     return updated_config
 
@@ -158,6 +188,8 @@ def set_plugins_root(config: Dict[str, Any], plugins_root: str) -> Dict[str, Any
     Returns a new config dictionary with the updated plugins_root setting.
     Does not save the configuration to disk.
 
+    Ensures roots dict exists (v2 schema).
+
     Args:
         config: Configuration dictionary to update
         plugins_root: Path to the plugins root directory
@@ -167,4 +199,9 @@ def set_plugins_root(config: Dict[str, Any], plugins_root: str) -> Dict[str, Any
     """
     updated_config = config.copy()
     updated_config["plugins_root"] = str(plugins_root)
+
+    # Ensure roots dict exists (v2 schema)
+    if "roots" not in updated_config:
+        updated_config["roots"] = {}
+
     return updated_config
