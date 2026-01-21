@@ -20,7 +20,11 @@ Panel that manages plugins you want loaded into Nuke at startup.
    nuke.pluginAddPath("Nuke_Plugin_Manager")
    ```
 
-3. **Open the panel standalone:**
+3. **Create the launcher app (one-time setup):**
+   - Double-click `Install_Launcher.command` in the `Nuke_Plugin_Manager/` folder
+   - This creates `Nuke_Plugin_Manager_Panel.app` in `~/.nuke/Nuke_Plugin_Manager/`
+
+4. **Open the panel standalone:**
    - Double-click `Nuke_Plugin_Manager_Panel.app` in `~/.nuke/Nuke_Plugin_Manager/`
    - Or run: `python ~/.nuke/Nuke_Plugin_Manager/core/run_app.py`
 

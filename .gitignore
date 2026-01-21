@@ -186,3 +186,8 @@ sandbox/
 # User-specific config file (each user gets their own)
 plugin_manager.json
 **/plugin_manager.json
+
+# Generated macOS .app bundles (contain user-specific paths)
+*.app/
+**/*.app/
+Nuke_Plugin_Manager_Panel.app/
