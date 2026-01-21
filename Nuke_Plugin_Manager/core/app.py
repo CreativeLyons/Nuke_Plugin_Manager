@@ -10,22 +10,35 @@ from pathlib import Path
 from typing import Dict, Any
 from functools import partial
 
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QCheckBox,
-    QScrollArea,
-    QMessageBox
-)
-from PySide6.QtCore import Qt, QSignalBlocker, QUrl, QTimer, QEvent
-from PySide6.QtGui import QFont, QDesktopServices
+try:
+    from PySide6.QtWidgets import (
+        QApplication,
+        QMainWindow,
+        QWidget,
+        QVBoxLayout,
+        QHBoxLayout,
+        QGridLayout,
+        QLabel,
+        QLineEdit,
+        QPushButton,
+        QCheckBox,
+        QScrollArea,
+        QMessageBox
+    )
+    from PySide6.QtCore import Qt, QSignalBlocker, QUrl, QTimer, QEvent
+    from PySide6.QtGui import QFont, QDesktopServices
+except ImportError:
+    print("=" * 70)
+    print("ERROR: PySide6 is not installed!")
+    print("=" * 70)
+    print("\nThe Nuke Plugin Manager GUI requires PySide6.")
+    print("\nTo install it, run:")
+    print("  pip install PySide6")
+    print("\nOr install from requirements.txt:")
+    print("  pip install -r requirements.txt")
+    print("\nFor more information, see README_RUN.md")
+    print("=" * 70)
+    sys.exit(1)
 
 from config import load_config, save_config
 from plugin_state import build_plugin_state, set_plugin_enabled, set_vanilla, set_plugins_root
