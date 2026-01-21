@@ -111,11 +111,15 @@ class PluginManagerWindow(QMainWindow):
         self.plugin_list_layout.setAlignment(Qt.AlignTop)
         self.scroll_area.setWidget(self.plugin_list_widget)
         main_layout.addWidget(self.scroll_area)
-        # Update enabled state after widget is assigned to scroll area
-        self.update_enabled_state()
 
-        # Status label (right-aligned to appear over buttons)
+        # Select All / Deselect All buttons and status label (same line)
         status_layout = QHBoxLayout()
+        self.select_all_button = QPushButton("Select All")
+        self.select_all_button.clicked.connect(self._on_select_all_clicked)
+        self.deselect_all_button = QPushButton("Deselect All")
+        self.deselect_all_button.clicked.connect(self._on_deselect_all_clicked)
+        status_layout.addWidget(self.select_all_button)
+        status_layout.addWidget(self.deselect_all_button)
         status_layout.addStretch()
         self.status_label = QLabel()
         self.status_label.setStyleSheet("color: #2e7d32; padding: 4px;")
@@ -142,6 +146,7 @@ class PluginManagerWindow(QMainWindow):
         self._update_plugin_list()
         self._update_warning()
         self._update_button_states()
+        # Update enabled state after all widgets are created
         self.update_enabled_state()
 
         # Show invalid config warning if needed
@@ -211,6 +216,30 @@ class PluginManagerWindow(QMainWindow):
     def _on_plugin_checkbox_changed(self, plugin_name: str, checked: bool):
         """Handle plugin checkbox change."""
         self.config = set_plugin_enabled(self.config, plugin_name, checked)
+        self._clear_status_on_change()
+
+    def _on_select_all_clicked(self):
+        """Handle Select All button click."""
+        # Update config for all enabled checkboxes (skip underscore-disabled)
+        for plugin_name, checkbox in self.plugin_checkboxes.items():
+            if checkbox.isEnabled():  # Only enable plugins that aren't underscore-disabled
+                self.config = set_plugin_enabled(self.config, plugin_name, True)
+                # Block signals to avoid triggering individual change handlers
+                checkbox.blockSignals(True)
+                checkbox.setChecked(True)
+                checkbox.blockSignals(False)
+        self._clear_status_on_change()
+
+    def _on_deselect_all_clicked(self):
+        """Handle Deselect All button click."""
+        # Update config for all checkboxes
+        for plugin_name, checkbox in self.plugin_checkboxes.items():
+            if checkbox.isEnabled():  # Only disable plugins that aren't underscore-disabled
+                self.config = set_plugin_enabled(self.config, plugin_name, False)
+                # Block signals to avoid triggering individual change handlers
+                checkbox.blockSignals(True)
+                checkbox.setChecked(False)
+                checkbox.blockSignals(False)
         self._clear_status_on_change()
 
     def _on_save_clicked(self):
@@ -324,6 +353,11 @@ class PluginManagerWindow(QMainWindow):
         widget = self.scroll_area.widget()
         if widget:
             widget.setEnabled(not vanilla)
+        # Disable Select All / Deselect All buttons when vanilla mode is on
+        if hasattr(self, 'select_all_button'):
+            self.select_all_button.setEnabled(not vanilla)
+        if hasattr(self, 'deselect_all_button'):
+            self.deselect_all_button.setEnabled(not vanilla)
 
     def _clear_status_on_change(self):
         """Clear status label on user change."""

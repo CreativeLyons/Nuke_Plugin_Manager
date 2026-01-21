@@ -22,7 +22,7 @@ class FakeNuke:
         self._nuke_version_string = nuke_version_string
         self._nuke_version_major = nuke_version_major
 
-    def addPluginPath(self, path):
+    def pluginAddPath(self, path):
         """Add a plugin path (captures it for testing)."""
         self.added_paths.append(path)
 

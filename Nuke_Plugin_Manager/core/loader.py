@@ -6,6 +6,7 @@ handling vanilla mode, version gating, and enabled states.
 """
 
 from typing import Optional
+from pathlib import Path
 
 from config import load_config
 from plugin_state import build_plugin_state
@@ -59,7 +60,7 @@ def apply_plugin_paths(
     according to enabled state, underscore-disabled status, and version gating.
 
     Args:
-        nuke_module: The nuke module object (must have addPluginPath method)
+        nuke_module: The nuke module object (must have pluginAddPath method)
         config_path: Optional path to the configuration JSON file.
                      If None, uses default user config path with baseline copy.
                      If provided, uses it directly (no baseline copy).
@@ -94,6 +95,9 @@ def apply_plugin_paths(
         # Get current Nuke major version
         current_nuke_major = _get_nuke_major_version(nuke_module, nuke_major)
 
+        # Collect plugins that will be loaded
+        loaded_plugins = []
+
         # Process each plugin
         plugins = state.get("plugins", [])
         for plugin in plugins:
@@ -122,12 +126,15 @@ def apply_plugin_paths(
                 plugin_path = plugin.get("path")
                 if plugin_path:
                     try:
-                        nuke_module.addPluginPath(plugin_path)
+                        nuke_module.pluginAddPath(plugin_path)
+                        # Collect plugin name for logging
+                        plugin_name = plugin.get("name", Path(plugin_path).name)
+                        loaded_plugins.append(plugin_name)
                     except (AttributeError, TypeError) as e:
                         print(f"Warning: Failed to add plugin path '{plugin_path}': {e}")
                         continue
                     except Exception as e:
-                        # Catch any other unexpected errors from addPluginPath
+                        # Catch any other unexpected errors from pluginAddPath
                         print(f"Warning: Unexpected error adding plugin path '{plugin_path}': {e}")
                         continue
 
@@ -135,6 +142,13 @@ def apply_plugin_paths(
                 # Catch any errors processing individual plugins
                 print(f"Warning: Error processing plugin: {e}")
                 continue
+
+        # Print loaded plugins list with separators at start and end
+        if loaded_plugins:
+            print("=" * 80)
+            for plugin_name in loaded_plugins:
+                print(f"Loaded Plugin......{plugin_name}")
+            print("=" * 80)
 
         return True
 
