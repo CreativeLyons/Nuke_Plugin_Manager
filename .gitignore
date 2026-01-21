@@ -182,3 +182,7 @@ cython_debug/
 
 # Local testing sandbox
 sandbox/
+
+# User-specific config file (each user gets their own)
+plugin_manager.json
+**/plugin_manager.json
