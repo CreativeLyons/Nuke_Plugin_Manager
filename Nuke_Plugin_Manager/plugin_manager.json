@@ -2,5 +2,46 @@
   "schema_version": 2,
   "vanilla": false,
   "plugins_root": "/Users/tonylyons/Dropbox/Public/GitHub/Experimental_NukeFolder/dotNuke/PythonPlugins",
-  "roots": {}
+  "roots": {
+    "/Users/tonylyons/Dropbox/Public/GitHub/Experimental_NukeFolder/dotNuke/PythonPlugins": {
+      "plugins": {
+        "AlignDots": {
+          "enabled": true
+        },
+        "AnimationMaker1_3": {
+          "enabled": true
+        },
+        "Cryptomattes": {
+          "enabled": true
+        },
+        "Dots_v5.1": {
+          "enabled": true
+        },
+        "IconPanel": {
+          "enabled": true
+        },
+        "KnobScripter_3.1.0": {
+          "enabled": true
+        },
+        "myMerge": {
+          "enabled": true
+        },
+        "QuickCreate": {
+          "enabled": true
+        },
+        "SearchReplacePanel": {
+          "enabled": true
+        },
+        "Shortcut_Editor_v1.3": {
+          "enabled": false
+        },
+        "Stamps_1.1.0": {
+          "enabled": true
+        },
+        "TheVersionChanger": {
+          "enabled": true
+        }
+      }
+    }
+  }
 }
