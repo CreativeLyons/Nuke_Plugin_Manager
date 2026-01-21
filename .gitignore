@@ -187,7 +187,13 @@ sandbox/
 plugin_manager.json
 **/plugin_manager.json
 
-# Generated macOS .app bundles (contain user-specific paths)
+# Generated launcher files (contain user-specific paths)
+# macOS
 *.app/
 **/*.app/
 Nuke_Plugin_Manager_Panel.app/
+# Windows
+Nuke_Plugin_Manager_Panel.bat
+# Linux
+Nuke_Plugin_Manager_Panel.sh
+Nuke_Plugin_Manager_Panel.desktop
