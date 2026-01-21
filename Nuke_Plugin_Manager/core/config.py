@@ -7,9 +7,10 @@ with schema versioning and defensive error handling.
 
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 # Schema version
@@ -22,6 +23,87 @@ DEFAULT_CONFIG = {
     "plugins_root": "",
     "roots": {}
 }
+
+
+def get_default_user_config_path() -> Path:
+    """
+    Get the default user config file path.
+
+    Returns:
+        Path to ~/.nuke/Nuke_Plugin_Manager/plugin_manager.json
+    """
+    home = Path.home()
+    config_dir = home / ".nuke" / "Nuke_Plugin_Manager"
+    return config_dir / "plugin_manager.json"
+
+
+def resolve_baseline_config_path() -> Optional[Path]:
+    """
+    Resolve the baseline config file path.
+
+    Checks:
+    1. NUKE_PLUGIN_MANAGER_BASELINE environment variable
+    2. default_config.json next to this module (config.py)
+
+    Returns:
+        Path to baseline config if found, None otherwise
+    """
+    # Check environment variable
+    env_baseline = os.environ.get("NUKE_PLUGIN_MANAGER_BASELINE")
+    if env_baseline:
+        baseline_path = Path(env_baseline).expanduser().resolve()
+        if baseline_path.exists() and baseline_path.is_file():
+            return baseline_path
+
+    # Look for default_config.json next to this module (in core/)
+    module_dir = Path(__file__).parent
+    default_config = module_dir / "default_config.json"
+    if default_config.exists() and default_config.is_file():
+        return default_config
+
+    return None
+
+
+def ensure_user_config(user_config_path: Path, use_baseline: bool = True) -> bool:
+    """
+    Ensure user config file exists, copying from baseline if needed.
+
+    If user config doesn't exist:
+    - If use_baseline is True and baseline exists: copy baseline → user config
+    - Else: create default config at user config path
+
+    Args:
+        user_config_path: Path where user config should exist
+        use_baseline: If True, try to copy baseline config if user config is missing
+
+    Returns:
+        True if user config now exists (was created or already existed), False otherwise
+    """
+    # If user config already exists, nothing to do
+    if user_config_path.exists():
+        return True
+
+    # Try to copy baseline if requested
+    if use_baseline:
+        baseline_path = resolve_baseline_config_path()
+        if baseline_path:
+            try:
+                # Create parent directory
+                user_config_path.parent.mkdir(parents=True, exist_ok=True)
+                # Copy baseline to user location
+                shutil.copy2(baseline_path, user_config_path)
+                return True
+            except (IOError, OSError, PermissionError):
+                # If copy fails, fall through to create defaults
+                pass
+
+    # Create default config
+    try:
+        user_config_path.parent.mkdir(parents=True, exist_ok=True)
+        save_config(str(user_config_path), DEFAULT_CONFIG.copy())
+        return True
+    except (IOError, OSError, PermissionError):
+        return False
 
 
 def _migrate_v1_to_v2(config: Dict[str, Any]) -> Dict[str, Any]:

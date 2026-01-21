@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleName</key>
+    <string>Nuke Plugin Manager Panel</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.nuke.pluginmanager</string>
+    <key>CFBundleExecutable</key>
+    <string>Nuke_Plugin_Manager_Panel</string>
+    <key>LSBackgroundOnly</key>
+    <false/>
+</dict>
+</plist>

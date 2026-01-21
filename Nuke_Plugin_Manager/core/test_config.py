@@ -18,10 +18,14 @@ if __name__ == "__main__":
 
         print("Testing save_config...")
         test_config = {
-            "schema_version": 1,
+            "schema_version": 2,
             "vanilla": True,
             "plugins_root": "/path/to/plugins",
-            "plugins": {"PluginA": {"enabled": True}}
+            "roots": {
+                "/path/to/plugins": {
+                    "plugins": {"PluginA": {"enabled": True}}
+                }
+            }
         }
         success = save_config(test_config_path, test_config)
         assert success, "Save should succeed"
@@ -32,7 +36,9 @@ if __name__ == "__main__":
         print(f"  Result: {loaded}")
         assert loaded["vanilla"] == True
         assert loaded["plugins_root"] == "/path/to/plugins"
-        assert loaded["plugins"] == {"PluginA": {"enabled": True}}
+        # v2 schema: plugins are in roots[plugins_root]["plugins"]
+        assert "/path/to/plugins" in loaded["roots"]
+        assert loaded["roots"]["/path/to/plugins"]["plugins"]["PluginA"]["enabled"] == True
         print("  ✓ Passed\n")
 
         print("Testing load_config with invalid JSON...")
@@ -48,7 +54,7 @@ if __name__ == "__main__":
         partial_loaded = load_config(test_config_path)
         assert partial_loaded["vanilla"] == True
         assert partial_loaded["plugins_root"] == ""  # Should use default
-        assert partial_loaded["plugins"] == {}  # Should use default
+        assert partial_loaded["roots"] == {}  # Should use default (v2 schema)
         print("  ✓ Passed\n")
 
         print("All tests passed!")

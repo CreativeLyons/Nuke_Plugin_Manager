@@ -30,11 +30,16 @@ if __name__ == "__main__":
 
     print("Testing build_plugin_state with config overrides...")
     config_with_overrides = DEFAULT_CONFIG.copy()
-    config_with_overrides["plugins_root"] = "sandbox/plugins"
-    config_with_overrides["plugins"] = {
-        "PluginA": {"enabled": False, "max_nuke_major": 14},
-        "PluginC": {"enabled": True, "max_nuke_major": 15},
-        "BrokenLegacy": {"enabled": True}
+    sandbox_root = str(Path("sandbox/plugins").resolve())
+    config_with_overrides["plugins_root"] = sandbox_root
+    config_with_overrides["roots"] = {
+        sandbox_root: {
+            "plugins": {
+                "PluginA": {"enabled": False, "max_nuke_major": 14},
+                "PluginC": {"enabled": True, "max_nuke_major": 15},
+                "BrokenLegacy": {"enabled": True}
+            }
+        }
     }
     state_overrides = build_plugin_state(config_with_overrides)
     plugin_a = next(p for p in state_overrides["plugins"] if p["name"] == "PluginA")
@@ -47,12 +52,15 @@ if __name__ == "__main__":
 
     print("Testing set_plugin_enabled...")
     config_test = DEFAULT_CONFIG.copy()
-    config_test["plugins"] = {"PluginA": {"enabled": True}}
+    config_test["plugins_root"] = "/test/plugins"
+    config_test["roots"] = {"/test/plugins": {"plugins": {"PluginA": {"enabled": True}}}}
     updated = set_plugin_enabled(config_test, "PluginA", False)
-    assert updated["plugins"]["PluginA"]["enabled"] == False
-    assert config_test["plugins"]["PluginA"]["enabled"] == True, "Original should be unchanged"
+    # v2 schema: plugins are in roots[plugins_root]["plugins"]
+    plugins_root = updated["plugins_root"]
+    assert updated["roots"][plugins_root]["plugins"]["PluginA"]["enabled"] == False
+    assert config_test["roots"][plugins_root]["plugins"]["PluginA"]["enabled"] == True, "Original should be unchanged"
     updated2 = set_plugin_enabled(config_test, "PluginB", True)
-    assert updated2["plugins"]["PluginB"]["enabled"] == True
+    assert updated2["roots"][plugins_root]["plugins"]["PluginB"]["enabled"] == True
     print("  ✓ Passed\n")
 
     print("Testing set_vanilla...")

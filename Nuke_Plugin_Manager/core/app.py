@@ -347,13 +347,24 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="./plugin_manager.json",
-        help="Path to configuration JSON file (default: ./plugin_manager.json)"
+        default=None,
+        help="Path to configuration JSON file (if not provided, uses default user config)"
     )
     args = parser.parse_args()
 
+    # Determine config path
+    if args.config:
+        # Explicit --config provided: use it directly (no baseline copy)
+        config_path = args.config
+    else:
+        # Use default user config path and ensure it exists (with baseline copy if needed)
+        from config import get_default_user_config_path, ensure_user_config
+        user_config_path = get_default_user_config_path()
+        ensure_user_config(user_config_path, use_baseline=True)
+        config_path = str(user_config_path)
+
     app = QApplication(sys.argv)
-    window = PluginManagerWindow(args.config)
+    window = PluginManagerWindow(config_path)
     window.show()
     sys.exit(app.exec())
 

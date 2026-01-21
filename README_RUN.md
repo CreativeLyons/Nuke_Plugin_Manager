@@ -30,18 +30,28 @@
    ```
 
 4. **Run the application**:
+
+   From the installable folder (`Nuke_Plugin_Manager/`):
    ```bash
-   python app.py
+   cd Nuke_Plugin_Manager
+   python core/run_app.py
+   ```
+
+   Or directly:
+   ```bash
+   cd Nuke_Plugin_Manager
+   python -c "import sys; sys.path.insert(0, 'core'); from app import main; main()"
    ```
 
    Or with a custom config path:
    ```bash
-   python app.py --config /path/to/your/config.json
+   cd Nuke_Plugin_Manager
+   python core/run_app.py --config /path/to/your/config.json
    ```
 
 ## Default Configuration
 
-If no `--config` argument is provided, the application will use `./plugin_manager.json` in the repository root.
+If no `--config` argument is provided, the application will use `~/.nuke/Nuke_Plugin_Manager/plugin_manager.json` (with baseline copy from `default_config.json` if available).
 
 ## Deactivating the Virtual Environment
 

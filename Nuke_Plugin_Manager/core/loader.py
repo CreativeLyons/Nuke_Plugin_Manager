@@ -49,7 +49,7 @@ def _get_nuke_major_version(nuke_module, provided_nuke_major: Optional[int] = No
 
 def apply_plugin_paths(
     nuke_module,
-    config_path: str,
+    config_path: Optional[str] = None,
     nuke_major: Optional[int] = None
 ) -> bool:
     """
@@ -60,13 +60,23 @@ def apply_plugin_paths(
 
     Args:
         nuke_module: The nuke module object (must have addPluginPath method)
-        config_path: Path to the configuration JSON file
+        config_path: Optional path to the configuration JSON file.
+                     If None, uses default user config path with baseline copy.
+                     If provided, uses it directly (no baseline copy).
         nuke_major: Optional Nuke major version override (if None, attempts to detect)
 
     Returns:
         True if operation completed successfully, False on fatal errors
     """
     try:
+        # Determine config path
+        if config_path is None:
+            # Use default user config path and ensure it exists (with baseline copy if needed)
+            from config import get_default_user_config_path, ensure_user_config
+            user_config_path = get_default_user_config_path()
+            ensure_user_config(user_config_path, use_baseline=True)
+            config_path = str(user_config_path)
+
         # Load configuration
         config = load_config(config_path)
 
