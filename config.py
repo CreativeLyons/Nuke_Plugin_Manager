@@ -63,7 +63,7 @@ def _migrate_v1_to_v2(config: Dict[str, Any]) -> Dict[str, Any]:
     return migrated
 
 
-def load_config(config_path: str) -> Dict[str, Any]:
+def load_config(config_path: str, return_status: bool = False):
     """
     Load configuration from a JSON file.
 
@@ -76,18 +76,25 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
     Args:
         config_path: Path to the JSON configuration file
+        return_status: If True, returns tuple (config, status) where status is
+                      "ok", "missing", or "invalid"
 
     Returns:
-        Dictionary containing the loaded configuration merged with defaults
+        Dictionary containing the loaded configuration merged with defaults,
+        or tuple (config, status) if return_status=True
     """
     config_file = Path(config_path)
 
     # Return defaults if file doesn't exist
     if not config_file.exists():
+        if return_status:
+            return (DEFAULT_CONFIG.copy(), "missing")
         return DEFAULT_CONFIG.copy()
 
     # Return defaults if not a file
     if not config_file.is_file():
+        if return_status:
+            return (DEFAULT_CONFIG.copy(), "missing")
         return DEFAULT_CONFIG.copy()
 
     try:
@@ -97,6 +104,8 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
         # Ensure it's a dictionary
         if not isinstance(loaded_config, dict):
+            if return_status:
+                return (DEFAULT_CONFIG.copy(), "invalid")
             return DEFAULT_CONFIG.copy()
 
         # Get schema version
@@ -126,10 +135,14 @@ def load_config(config_path: str) -> Dict[str, Any]:
         if not isinstance(config.get("roots"), dict):
             config["roots"] = DEFAULT_CONFIG["roots"]
 
+        if return_status:
+            return (config, "ok")
         return config
 
     except (json.JSONDecodeError, IOError, OSError, PermissionError):
         # Return defaults on any error (invalid JSON, read error, permission error, etc.)
+        if return_status:
+            return (DEFAULT_CONFIG.copy(), "invalid")
         return DEFAULT_CONFIG.copy()
 
 

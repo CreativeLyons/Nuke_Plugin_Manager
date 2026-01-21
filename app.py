@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QMessageBox
 )
-from PySide6.QtCore import Qt, QSignalBlocker, QUrl
+from PySide6.QtCore import Qt, QSignalBlocker, QUrl, QTimer
 from PySide6.QtGui import QFont, QDesktopServices
 
 from config import load_config, save_config
@@ -43,8 +43,9 @@ class PluginManagerWindow(QMainWindow):
         super().__init__()
         # Resolve config path to absolute
         self.config_path = str(Path(config_path).resolve())
-        self.config = load_config(self.config_path)
+        self.config, load_status = load_config(self.config_path, return_status=True)
         self.plugin_checkboxes = {}  # Map plugin name to checkbox widget
+        self._config_load_status = load_status  # Track load status for error display
 
         self.setWindowTitle("Nuke Plugin Manager")
         self.setMinimumWidth(600)
@@ -113,10 +114,14 @@ class PluginManagerWindow(QMainWindow):
         # Update enabled state after widget is assigned to scroll area
         self.update_enabled_state()
 
-        # Status label
+        # Status label (right-aligned to appear over buttons)
+        status_layout = QHBoxLayout()
+        status_layout.addStretch()
         self.status_label = QLabel()
         self.status_label.setStyleSheet("color: #2e7d32; padding: 4px;")
-        main_layout.addWidget(self.status_label)
+        self.status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        status_layout.addWidget(self.status_label)
+        main_layout.addLayout(status_layout)
 
         # Buttons layout
         buttons_layout = QHBoxLayout()
@@ -139,10 +144,16 @@ class PluginManagerWindow(QMainWindow):
         self._update_button_states()
         self.update_enabled_state()
 
+        # Show invalid config warning if needed
+        if self._config_load_status == "invalid":
+            config_filename = Path(self.config_path).name
+            self.status_label.setText(f"⚠️ Config was invalid and reset to defaults ({config_filename})")
+            self.status_label.setStyleSheet("color: #d32f2f; padding: 4px;")
+
     def _on_plugins_root_changed(self, text: str):
         """Handle plugins root path change."""
         self.config = set_plugins_root(self.config, text)
-        self.status_label.setText("")  # Clear status on change
+        self._clear_status_on_change()
         self._update_plugin_list()
         self._update_warning()
         self._update_button_states()
@@ -179,7 +190,8 @@ class PluginManagerWindow(QMainWindow):
                 from config import DEFAULT_CONFIG
                 save_config(self.config_path, DEFAULT_CONFIG)
                 # Reload config after creating
-                self.config = load_config(self.config_path)
+                self.config, load_status = load_config(self.config_path, return_status=True)
+                self._config_load_status = load_status
             except Exception:
                 self.status_label.setText("⚠️ Could not open config")
                 return
@@ -188,17 +200,18 @@ class PluginManagerWindow(QMainWindow):
         url = QUrl.fromLocalFile(self.config_path)
         if not QDesktopServices.openUrl(url):
             self.status_label.setText("⚠️ Could not open config")
+            self.status_label.setStyleSheet("color: #d32f2f; padding: 4px;")
 
     def _on_vanilla_changed(self, checked: bool):
         """Handle vanilla checkbox change."""
         self.config = set_vanilla(self.config, checked)
-        self.status_label.setText("")  # Clear status on change
+        self._clear_status_on_change()
         self.update_enabled_state()
 
     def _on_plugin_checkbox_changed(self, plugin_name: str, checked: bool):
         """Handle plugin checkbox change."""
         self.config = set_plugin_enabled(self.config, plugin_name, checked)
-        self.status_label.setText("")  # Clear status on change
+        self._clear_status_on_change()
 
     def _on_save_clicked(self):
         """Handle save button click."""
@@ -206,8 +219,11 @@ class PluginManagerWindow(QMainWindow):
             success = save_config(self.config_path, self.config)
             if success:
                 self.status_label.setText("✅ Config saved")
+                self.status_label.setStyleSheet("color: #2e7d32; padding: 4px;")
+                self._config_load_status = "ok"  # Clear invalid status after successful save
             else:
-                QMessageBox.warning(self, "Save Failed", "Failed to save configuration.")
+                self.status_label.setText("⚠️ Save failed")
+                self.status_label.setStyleSheet("color: #d32f2f; padding: 4px;")
 
     def _on_done_clicked(self):
         """Handle done button click."""
@@ -215,14 +231,20 @@ class PluginManagerWindow(QMainWindow):
             success = save_config(self.config_path, self.config)
             if success:
                 self.status_label.setText("✅ Config saved")
-                self.close()
+                self.status_label.setStyleSheet("color: #2e7d32; padding: 4px;")
+                self._config_load_status = "ok"  # Clear invalid status after successful save
+                # Wait 330ms then close
+                QTimer.singleShot(330, self.close)
             else:
-                QMessageBox.warning(self, "Save Failed", "Failed to save configuration.")
+                self.status_label.setText("⚠️ Save failed")
+                self.status_label.setStyleSheet("color: #d32f2f; padding: 4px;")
+                # Do not close on save failure
 
     def _on_cancel_clicked(self):
         """Handle cancel button click."""
         # Reload config from disk to discard changes
-        self.config = load_config(self.config_path)
+        self.config, load_status = load_config(self.config_path, return_status=True)
+        self._config_load_status = load_status
         self.close()
 
     def _is_plugins_root_valid(self) -> bool:
@@ -302,6 +324,14 @@ class PluginManagerWindow(QMainWindow):
         widget = self.scroll_area.widget()
         if widget:
             widget.setEnabled(not vanilla)
+
+    def _clear_status_on_change(self):
+        """Clear status label on user change."""
+        # Clear invalid config warning on any user change
+        if self._config_load_status == "invalid":
+            self._config_load_status = "ok"
+        self.status_label.setText("")
+        self.status_label.setStyleSheet("color: #2e7d32; padding: 4px;")
 
     def _update_button_states(self):
         """Update button enabled states."""
